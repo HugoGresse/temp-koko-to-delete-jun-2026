@@ -24,12 +24,12 @@ function importCsvToSqlite(csvFilePath, dbFilePath) {
 
   const db = new Database(dbFilePath);
   // PRAGMA for performance
-  db.pragma("journal_mode = OFF");
-  db.pragma("synchronous = OFF");
+  db.pragma("journal_mode = WAL");
+  db.pragma("synchronous = NORMAL");
   db.pragma("temp_store = MEMORY");
   db.pragma("page_size = 4096");
   db.pragma("cache_size = 10000");
-  db.pragma("auto_vacuum = FULL");
+  db.pragma("auto_vacuum = 0");
 
   db.exec("BEGIN TRANSACTION");
 
@@ -40,6 +40,8 @@ function importCsvToSqlite(csvFilePath, dbFilePath) {
   let batchSize = 1000;
   let batch = [];
   let firstRowProcessed = false;
+
+  const table = "birddata";
 
   // Create a read stream for the CSV file
   const parser = parse({
@@ -55,13 +57,11 @@ function importCsvToSqlite(csvFilePath, dbFilePath) {
     if (!firstRowProcessed) {
       headers = Object.keys(record);
       const columnDefs = inferColumnTypes(headers, record).join(", ");
-      db.exec(`CREATE TABLE IF NOT EXISTS bird_detections (${columnDefs})`);
+      db.exec(`CREATE TABLE IF NOT EXISTS ${table} (${columnDefs})`);
 
       // Prepare the insert statement
       const placeholders = headers.map(() => "?").join(", ");
-      insert = db.prepare(
-        `INSERT INTO bird_detections VALUES (${placeholders})`
-      );
+      insert = db.prepare(`INSERT INTO ${table} VALUES (${placeholders})`);
 
       // Process the first row
       batch.push(record);
@@ -121,7 +121,9 @@ function importCsvToSqlite(csvFilePath, dbFilePath) {
 }
 
 const csvFilePath = process.argv[2] || "data.csv";
-const dbFilePath = process.argv[3] || "bird_detections.db";
+const dbFilePath = process.argv[3] || "birddata.db";
 
-fs.unlinkSync(dbFilePath);
+if (fs.existsSync(dbFilePath)) {
+  fs.unlinkSync(dbFilePath);
+}
 importCsvToSqlite(csvFilePath, dbFilePath);

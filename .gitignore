@@ -86,3 +86,6 @@ buck-out/
 
 *.db 
 *.csv
+test.js
+*.db-shm
+*.db-wal
